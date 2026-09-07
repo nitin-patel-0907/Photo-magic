@@ -24,6 +24,14 @@ export default function App() {
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastParams, setLastParams] = useState<{
+    category: ActionCategory;
+    prompt: string;
+    actionName: string;
+    maskImage?: string;
+    modelPreference?: 'standard' | 'high-quality';
+  } | null>(null);
 
   // Check health and API key status on mount
   useEffect(() => {
@@ -60,9 +68,11 @@ export default function App() {
       return;
     }
 
+    setLastParams(params);
     setCurrentActionName(params.actionName);
     setCurrentCategory(params.category);
     setErrorMessage(null);
+    setIsSubmitting(true);
     setStep('processing');
 
     try {
@@ -107,6 +117,14 @@ export default function App() {
           'Failed to connect to the Magic Photo AI service. Please check your connection and try again.'
       );
       setStep('action');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRetry = () => {
+    if (lastParams) {
+      handleApplyAction(lastParams);
     }
   };
 
@@ -118,12 +136,21 @@ export default function App() {
     setStep('action');
   };
 
+  // Revert back to original uploaded photo if chained
+  const handleRevertToOriginal = () => {
+    if (originalPhoto) {
+      setCurrentPhoto(originalPhoto);
+      setErrorMessage(null);
+    }
+  };
+
   // Reset back to upload
   const handleStartOver = () => {
     setOriginalPhoto(null);
     setCurrentPhoto(null);
     setCurrentResult(null);
     setErrorMessage(null);
+    setLastParams(null);
     setStep('upload');
   };
 
@@ -148,10 +175,10 @@ export default function App() {
         </div>
       )}
 
-      {/* Friendly Error Toast Notification */}
+      {/* Friendly Error Toast Notification with Retry */}
       {errorMessage && (
         <div className="mx-auto mt-4 w-full max-w-3xl px-4">
-          <div className="flex items-start justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
             <div className="flex items-start gap-3">
               <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
               <div>
@@ -159,13 +186,26 @@ export default function App() {
                 <p className="mt-0.5 text-xs text-rose-700">{errorMessage}</p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setErrorMessage(null)}
-              className="rounded-lg p-1 text-rose-600 transition hover:bg-rose-100"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-2 self-end sm:self-center">
+              {lastParams && (
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  disabled={isSubmitting}
+                  className="flex items-center gap-1.5 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-rose-700 transition disabled:opacity-50"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  <span>Try Again</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setErrorMessage(null)}
+                className="rounded-lg p-1 text-rose-600 transition hover:bg-rose-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -184,7 +224,7 @@ export default function App() {
             currentPhoto={currentPhoto}
             onApplyAction={handleApplyAction}
             onSelectNewPhoto={handleStartOver}
-            isProcessing={false}
+            isProcessing={isSubmitting}
           />
         )}
 

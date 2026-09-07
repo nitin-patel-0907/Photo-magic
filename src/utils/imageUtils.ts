@@ -17,12 +17,25 @@ export async function fileToBase64(file: File | Blob): Promise<string> {
 }
 
 /**
- * Loads an external image URL and converts it into a Base64 Data URL
+ * Loads an external image URL and converts it into a Base64 Data URL,
+ * with proxy fallback to prevent CORS issues in iframe/preview environments.
  */
 export async function urlToBase64(url: string): Promise<string> {
-  const response = await fetch(url);
-  const blob = await response.blob();
-  return fileToBase64(blob);
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Direct fetch failed with status ${response.status}`);
+    const blob = await response.blob();
+    return await fileToBase64(blob);
+  } catch (err) {
+    // If direct fetch fails (e.g. CORS restrictions), fetch via local server proxy
+    const proxyUrl = `/api/sample-image?url=${encodeURIComponent(url)}`;
+    const proxyResponse = await fetch(proxyUrl);
+    if (!proxyResponse.ok) {
+      throw new Error(`Failed to load image via proxy: status ${proxyResponse.status}`);
+    }
+    const blob = await proxyResponse.blob();
+    return await fileToBase64(blob);
+  }
 }
 
 /**

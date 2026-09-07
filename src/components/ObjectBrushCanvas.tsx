@@ -27,12 +27,25 @@ export const ObjectBrushCanvas: React.FC<ObjectBrushCanvasProps> = ({
   const syncCanvas = () => {
     const canvas = canvasRef.current;
     const img = imgRef.current;
-    if (!canvas || !img || !img.naturalWidth) return;
+    if (!canvas || !img) return;
 
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    clearMask();
+    // Use natural dimensions or client dimensions if naturalWidth not yet ready
+    const width = img.naturalWidth || img.clientWidth || 800;
+    const height = img.naturalHeight || img.clientHeight || 600;
+
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+      clearMask();
+    }
   };
+
+  useEffect(() => {
+    // If image is already complete in DOM cache, sync canvas immediately
+    if (imgRef.current && imgRef.current.complete) {
+      syncCanvas();
+    }
+  }, [imageUrl]);
 
   const getCoordinates = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -64,14 +77,18 @@ export const ObjectBrushCanvas: React.FC<ObjectBrushCanvasProps> = ({
     setIsDrawing(true);
     const { x, y } = getCoordinates(e);
 
-    ctx.strokeStyle = 'rgba(244, 63, 94, 0.75)'; // vibrant semi-transparent rose
-    ctx.fillStyle = 'rgba(244, 63, 94, 0.75)';
+    const rect = canvas.getBoundingClientRect();
+    const scaleRatio = rect.width > 0 ? canvas.width / rect.width : 1;
+    const effectiveLineWidth = Math.max(10, brushSize * scaleRatio);
+
+    ctx.strokeStyle = 'rgba(244, 63, 94, 0.8)'; // vibrant semi-transparent rose
+    ctx.fillStyle = 'rgba(244, 63, 94, 0.8)';
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.lineWidth = brushSize * (canvas.width / 500); // Scale brush to image resolution
+    ctx.lineWidth = effectiveLineWidth;
 
     ctx.beginPath();
-    ctx.arc(x, y, (brushSize * (canvas.width / 500)) / 2, 0, Math.PI * 2);
+    ctx.arc(x, y, effectiveLineWidth / 2, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.beginPath();
@@ -86,6 +103,15 @@ export const ObjectBrushCanvas: React.FC<ObjectBrushCanvasProps> = ({
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleRatio = rect.width > 0 ? canvas.width / rect.width : 1;
+    const effectiveLineWidth = Math.max(10, brushSize * scaleRatio);
+
+    ctx.strokeStyle = 'rgba(244, 63, 94, 0.8)';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = effectiveLineWidth;
 
     const { x, y } = getCoordinates(e);
     ctx.lineTo(x, y);

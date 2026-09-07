@@ -30,6 +30,9 @@ function getGenAI(): GoogleGenAI {
   return aiClient;
 }
 
+// In-memory set to prevent duplicate identical concurrent submissions
+const activeSubmissions = new Set<string>();
+
 async function startServer() {
   const app = express();
 
@@ -45,8 +48,57 @@ async function startServer() {
     });
   });
 
+  // Proxy endpoint for sample photos to prevent CORS issues in preview environments
+  app.get("/api/sample-image", async (req, res) => {
+    try {
+      const imageUrl = req.query.url;
+      if (!imageUrl || typeof imageUrl !== "string") {
+        return res.status(400).json({ error: "Missing image url parameter" });
+      }
+
+      // Security check: only allow safe image providers like unsplash or picsum
+      const parsedUrl = new URL(imageUrl);
+      const allowedHosts = [
+        "images.unsplash.com",
+        "plus.unsplash.com",
+        "picsum.photos",
+        "fastly.picsum.photos",
+      ];
+      if (!allowedHosts.some((h) => parsedUrl.hostname.endsWith(h))) {
+        return res.status(403).json({ error: "Hostname not permitted" });
+      }
+
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        return res.status(response.status).json({ error: "Failed to fetch sample image" });
+      }
+
+      const contentType = response.headers.get("content-type") || "image/jpeg";
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+
+      const arrayBuffer = await response.arrayBuffer();
+      res.send(Buffer.from(arrayBuffer));
+    } catch (err: any) {
+      console.error("Error proxying sample image:", err?.message);
+      res.status(500).json({ error: "Error loading sample image" });
+    }
+  });
+
   // Magic edit transformation endpoint
   app.post("/api/magic-edit", async (req, res) => {
+    // Request timeout guard (75 seconds)
+    const timeoutId = setTimeout(() => {
+      if (!res.headersSent) {
+        res.status(504).json({
+          success: false,
+          error: "The AI image generation timed out. Please try again with a slightly smaller image or different action.",
+        });
+      }
+    }, 75000);
+
+    let submissionKey = "";
+
     try {
       const {
         image,
@@ -58,18 +110,32 @@ async function startServer() {
       } = req.body;
 
       if (!image || typeof image !== "string") {
+        clearTimeout(timeoutId);
         return res.status(400).json({
           success: false,
           error: "Please provide a valid image data string.",
         });
       }
 
-      if (!prompt || typeof prompt !== "string") {
+      if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
+        clearTimeout(timeoutId);
         return res.status(400).json({
           success: false,
           error: "Please provide a prompt instruction for the edit.",
         });
       }
+
+      // Safeguard against duplicate identical submissions
+      const snippet = image.slice(0, 100) + prompt.slice(0, 50);
+      submissionKey = snippet;
+      if (activeSubmissions.has(submissionKey)) {
+        clearTimeout(timeoutId);
+        return res.status(429).json({
+          success: false,
+          error: "An identical edit request is already in progress. Please wait a moment.",
+        });
+      }
+      activeSubmissions.add(submissionKey);
 
       const ai = getGenAI();
 
@@ -175,6 +241,8 @@ async function startServer() {
         }
       }
 
+      clearTimeout(timeoutId);
+
       if (!generatedImageUrl) {
         return res.status(500).json({
           success: false,
@@ -191,13 +259,37 @@ async function startServer() {
         note: modelNote || undefined,
       });
     } catch (error: any) {
+      clearTimeout(timeoutId);
       console.error("Error in /api/magic-edit:", error);
-      const message =
-        error?.message || "An unexpected error occurred while processing the photo.";
+
+      let userMessage =
+        "An unexpected error occurred while processing the photo. Please try again.";
+
+      const msg = error?.message || "";
+      if (msg.includes("GEMINI_API_KEY") || msg.includes("API key")) {
+        userMessage =
+          "Gemini API key is not configured. Please add your key in the AI Studio Settings > Secrets panel.";
+      } else if (msg.includes("limit: 0") || msg.includes("free_tier")) {
+        userMessage =
+          "Gemini image generation models (Nano Banana) require a paid API key with billing enabled (free-tier quota limit is 0). Please select or link a paid API key in AI Studio.";
+      } else if (msg.includes("429") || msg.includes("quota") || msg.includes("ResourceExhausted")) {
+        userMessage =
+          "Gemini API rate limit or quota exceeded. Please wait a few moments before trying again.";
+      } else if (msg.includes("SAFETY") || msg.includes("blocked")) {
+        userMessage =
+          "The photo or instruction triggered Gemini safety guidelines. Please try a different photo or prompt.";
+      } else if (msg.length > 0 && msg.length < 200) {
+        userMessage = msg;
+      }
+
       return res.status(500).json({
         success: false,
-        error: message,
+        error: userMessage,
       });
+    } finally {
+      if (submissionKey) {
+        activeSubmissions.delete(submissionKey);
+      }
     }
   });
 

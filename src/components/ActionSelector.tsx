@@ -99,7 +99,10 @@ export const ActionSelector: React.FC<ActionSelectorProps> = ({
     }
   };
 
+  const [validationError, setValidationError] = useState<string | null>(null);
+
   const executeAction = () => {
+    setValidationError(null);
     const modelPreference = useHighQuality ? 'high-quality' : 'standard';
 
     if (showCustomPrompt && customPrompt.trim()) {
@@ -136,7 +139,7 @@ export const ActionSelector: React.FC<ActionSelectorProps> = ({
       case 'change-bg': {
         if (customBgImage) {
           const prompt =
-            'Seamlessly replace the entire background behind the main subject using the reference background provided in the second image. Harmonize lighting, color reflections, shadow direction, and depth-of-field so the subject looks organically photographed in this environment.';
+            'The first image contains the foreground subject. The second image provides the new background environment. Seamlessly cut out the subject from the first image and composite them onto the new background from the second image. Harmonize lighting, color reflections, shadow direction, and depth-of-field so the subject looks organically photographed in this environment.';
           onApplyAction({
             category: 'change-bg',
             prompt,
@@ -166,10 +169,20 @@ export const ActionSelector: React.FC<ActionSelectorProps> = ({
       }
 
       case 'remove-object': {
+        if (!objectMask && !objectDescription.trim()) {
+          setValidationError(
+            'Please brush over the object to vanish on the photo, or type its description below.'
+          );
+          return;
+        }
+
         const userDesc = objectDescription.trim()
           ? `specifically removing: "${objectDescription.trim()}"`
           : 'removing the item highlighted in the provided mask';
-        const prompt = `In this photo, cleanly remove the unwanted object or person, ${userDesc}. Perfectly inpaint and reconstruct the background and textures behind the removed region, matching the surrounding lighting, surface patterns, shadows, and perspective seamlessly so it appears as if the object was never there.`;
+
+        const prompt = objectMask
+          ? `The first image is the original photo. The second image is a binary mask where the white shape indicates the exact object or person to be removed. ${userDesc}. Cleanly erase this object and seamlessly inpaint and reconstruct the background and textures behind the removed region, matching the surrounding lighting, surface patterns, shadows, and perspective seamlessly so it appears as if the object was never there.`
+          : `In this photo, cleanly remove the unwanted object or person: "${objectDescription.trim()}". Perfectly inpaint and reconstruct the background and textures behind the removed region, matching surrounding lighting, surfaces, and shadows seamlessly so it appears as if the object was never there.`;
 
         onApplyAction({
           category: 'remove-object',
@@ -710,6 +723,19 @@ export const ActionSelector: React.FC<ActionSelectorProps> = ({
               objectDescription={objectDescription}
               setObjectDescription={setObjectDescription}
             />
+
+            {validationError && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700 flex items-center justify-between">
+                <span>{validationError}</span>
+                <button
+                  type="button"
+                  onClick={() => setValidationError(null)}
+                  className="text-rose-500 hover:text-rose-800"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             {/* Primary Action Button */}
             <button

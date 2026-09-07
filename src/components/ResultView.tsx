@@ -41,23 +41,24 @@ export const ResultView: React.FC<ResultViewProps> = ({
     setSliderPosition(percentage);
   }, []);
 
-  const handleMouseDown = () => {
+  const handlePointerDown = (e: React.PointerEvent) => {
     isDraggingRef.current = true;
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    handlePointerMove(e.clientX);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handlePointerMoveEvent = (e: React.PointerEvent) => {
     if (isDraggingRef.current) {
       handlePointerMove(e.clientX);
     }
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUp = (e: React.PointerEvent) => {
     isDraggingRef.current = false;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length > 0) {
-      handlePointerMove(e.touches[0].clientX);
+    try {
+      (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+    } catch {
+      // Ignored
     }
   };
 
@@ -138,50 +139,45 @@ export const ResultView: React.FC<ResultViewProps> = ({
           <div
             ref={containerRef}
             id="before-after-slider-container"
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            onTouchMove={handleTouchMove}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMoveEvent}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
             onClick={handleContainerClick}
-            className="relative h-[440px] w-full max-w-4xl cursor-ew-resize overflow-hidden rounded-3xl border-2 border-slate-200 bg-slate-950 shadow-xl select-none sm:h-[520px]"
+            className="relative h-[440px] w-full max-w-4xl cursor-ew-resize overflow-hidden rounded-3xl border-2 border-slate-200 bg-slate-950 shadow-xl select-none touch-none sm:h-[520px]"
           >
-            {/* AFTER IMAGE (Bottom/Right Layer) */}
+            {/* AFTER IMAGE (Underneath / Right side) */}
             <img
               src={result.resultImage}
               alt="Edited Result"
               referrerPolicy="no-referrer"
               className="absolute inset-0 h-full w-full object-contain pointer-events-none"
             />
-            <div className="pointer-events-none absolute right-4 top-4 rounded-full bg-purple-600/90 px-3 py-1 text-xs font-bold text-white shadow backdrop-blur-xs flex items-center gap-1">
+            <div className="pointer-events-none absolute right-4 top-4 rounded-full bg-purple-600/90 px-3 py-1 text-xs font-bold text-white shadow backdrop-blur-xs flex items-center gap-1 z-10">
               <Sparkles className="h-3 w-3" />
               <span>AFTER</span>
             </div>
 
-            {/* BEFORE IMAGE (Clipped Left Layer) */}
+            {/* BEFORE IMAGE (Top Layer, clipped to left sliderPosition%) */}
+            <img
+              src={result.originalImage}
+              alt="Original"
+              referrerPolicy="no-referrer"
+              className="absolute inset-0 h-full w-full object-contain pointer-events-none"
+              style={{
+                clipPath: `inset(0 ${100 - sliderPosition}% 0 0)`,
+              }}
+            />
             <div
-              className="absolute inset-0 overflow-hidden pointer-events-none"
-              style={{ width: `${sliderPosition}%` }}
+              className="pointer-events-none absolute left-4 top-4 rounded-full bg-slate-900/80 px-3 py-1 text-xs font-bold text-white shadow backdrop-blur-xs z-10"
+              style={{ opacity: sliderPosition > 10 ? 1 : 0 }}
             >
-              <img
-                src={result.originalImage}
-                alt="Original"
-                referrerPolicy="no-referrer"
-                className="absolute inset-0 h-full max-w-none object-contain"
-                style={{
-                  width: containerRef.current
-                    ? `${containerRef.current.clientWidth}px`
-                    : '100%',
-                }}
-              />
-              <div className="pointer-events-none absolute left-4 top-4 rounded-full bg-slate-900/80 px-3 py-1 text-xs font-bold text-white shadow backdrop-blur-xs">
-                BEFORE
-              </div>
+              BEFORE
             </div>
 
             {/* Draggable Divider Line and Handle */}
             <div
-              className="pointer-events-none absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_12px_rgba(0,0,0,0.6)]"
+              className="pointer-events-none absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_12px_rgba(0,0,0,0.8)] z-20"
               style={{ left: `${sliderPosition}%` }}
             >
               <div className="pointer-events-auto absolute top-1/2 -translate-x-1/2 -translate-y-1/2 flex h-10 w-10 cursor-grab items-center justify-center rounded-full bg-white text-purple-700 shadow-xl ring-2 ring-purple-600 active:cursor-grabbing hover:scale-110 transition-transform">
@@ -193,7 +189,7 @@ export const ResultView: React.FC<ResultViewProps> = ({
             </div>
 
             {/* Hint overlay */}
-            <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-[11px] font-medium text-white/90 backdrop-blur-xs">
+            <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-[11px] font-medium text-white/90 backdrop-blur-xs z-10">
               Drag slider or click anywhere to compare
             </div>
           </div>
