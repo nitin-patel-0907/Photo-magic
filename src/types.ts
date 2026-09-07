@@ -58,4 +58,6 @@ export interface EditResult {
   actionCategory: ActionCategory;
   appliedPrompt: string;
   timestamp: number;
+  note?: string;
+  durationSeconds?: number;
 }

@@ -103,7 +103,7 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
 
         <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-purple-200/80 bg-purple-50/80 px-4 py-1.5 text-xs font-semibold text-purple-700 shadow-sm backdrop-blur-sm">
           <Sparkles className="h-3.5 w-3.5 text-purple-600" />
-          <span>Gemini Native Image Transformation</span>
+          <span>100% Free & Local Open-Source Models • Zero API Keys • Unlimited Edits</span>
         </div>
 
         <h1 className="font-['Outfit',sans-serif] text-4xl font-extrabold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">

@@ -93,11 +93,21 @@ export const ResultView: React.FC<ResultViewProps> = ({
               <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
               Magic Edit Complete!
             </span>
+            {result.durationSeconds !== undefined && (
+              <span className="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-semibold text-purple-700">
+                ⚡ {result.durationSeconds}s
+              </span>
+            )}
             <span className="text-xs text-slate-500">Step 4 of 4</span>
           </div>
           <h2 className="mt-1 font-['Outfit',sans-serif] text-xl font-bold text-slate-900">
             {result.actionName}
           </h2>
+          {result.note && (
+            <p className="mt-0.5 text-xs text-slate-500 font-medium">
+              🌿 {result.note}
+            </p>
+          )}
         </div>
 
         {/* View Mode Toggle */}

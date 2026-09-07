@@ -856,7 +856,7 @@ export const ActionSelector: React.FC<ActionSelectorProps> = ({
                 <span>Custom AI Magic Prompt</span>
               </h3>
               <p className="text-xs text-slate-500">
-                Describe any creative edit in plain English. Gemini Nano Banana will apply it directly.
+                Describe any creative look or adjustment to apply directly with our local image engine.
               </p>
             </div>
 

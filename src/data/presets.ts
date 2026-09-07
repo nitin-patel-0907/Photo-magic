@@ -198,4 +198,10 @@ export const ENHANCE_OPTIONS: EnhanceOption[] = [
     prompt:
       'Convert this photo into a dramatic high dynamic range (HDR) cinematic image: reveal rich details in deep shadows and bright highlights, amplify depth and local contrast, saturate colors harmoniously, and infuse the image with golden-hour warmth and atmospheric radiance.',
   },
+  {
+    id: 'super-res',
+    name: '🚀 2x Super-Resolution',
+    description: 'Double image resolution with Lanczos4 interpolation and edge detail synthesis',
+    prompt: 'super-res upscale 2x resolution with edge detail synthesis',
+  },
 ];

@@ -106,6 +106,8 @@ export default function App() {
         actionCategory: params.category,
         appliedPrompt: params.prompt,
         timestamp: Date.now(),
+        note: data.note,
+        durationSeconds: data.durationSeconds,
       };
 
       setCurrentResult(newResult);
